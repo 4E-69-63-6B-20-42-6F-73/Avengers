@@ -19,12 +19,34 @@ namespace Test.Avengers
             {
                 "ATGGC", 
                 "TGGCG",
+                "GGCGT",
             };
 
             var generator = new KmerGenerator();
 
             // Act
             var actual = generator.Generate("ATGGCGT", 5);
+
+            // Assert
+            actual.Should().BeEquivalentTo(expected);
+        }
+        [Fact]
+        public void CanGenerateKmers2()
+        {
+            // Arrange
+            var expected = new List<string>
+            {
+                "ATG",
+                "TGG",
+                "GGC",
+                "GCG",
+                "CGT",
+            };
+
+            var generator = new KmerGenerator();
+
+            // Act
+            var actual = generator.Generate("ATGGCGT", 3);
 
             // Assert
             actual.Should().BeEquivalentTo(expected);

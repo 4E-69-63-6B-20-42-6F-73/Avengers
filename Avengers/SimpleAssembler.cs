@@ -28,7 +28,7 @@ namespace Avengers
         /// <returns></returns>
         public string Assemble() 
         {
-            var graph = new AdjacencyGraph<string, ValueEdge<string,string>>();
+            var graph = new AdjacencyGraph<string, Edge<string>>();
 
            
             foreach (var read in reads)
@@ -37,27 +37,44 @@ namespace Avengers
 
                 foreach (var kmer in kmers)
                 {
-                    var thing1 = kmer[..^1];
-                    var thing2 = kmer[1..];
+                    if (!graph.ContainsVertex(kmer)) 
+                    {
+                        graph.AddVertex(kmer);
+                    }
+                    
+                    /// A[TC] -> [TC]T
+                    var overlappingKmer = graph.Vertices.FirstOrDefault(x => x.StartsWith(kmer[1..]));
+                    if (overlappingKmer != null)
+                    {
+                        graph.AddEdge(new Edge<string>(kmer, overlappingKmer));
+                    }
 
-                    graph.AddVertex(thing1);
-                    graph.AddVertex(thing2);
-
-                    graph.AddEdge(new ValueEdge<string, string>(kmer ,thing1, thing2));
+                    /// [AT]C -> G[AT]
+                     overlappingKmer = graph.Vertices.FirstOrDefault(x => x.EndsWith(kmer[..^1]));
+                    if (overlappingKmer != null)
+                    {
+                        graph.AddEdge(new Edge<string>(overlappingKmer, kmer));
+                    }
                 }
             }
 
-            var thing = new EulerianTrailAlgorithm<string, ValueEdge<string, string>>(graph);
-            thing.Compute();
+            // The EulerianTrailAlgorithm calculates the Euler trail not path!
+            // The diffrence between euler trail and path is that the trail must start and end on same node.
+            // Path not.
+            // So we add a new edge from last to first so a euler trail can be created.
+            graph.AddEdge(new Edge<string>(graph.Vertices.Last(), graph.Vertices.First()));
 
-            var orderedKmers = thing.Circuit.Select(x => x.Value);
+            var thing = new EulerianTrailAlgorithm<string, Edge<string>>(graph);
+            thing.Compute(graph.Vertices.First());
+
+            var orderedKmers = thing.Circuit.Select(x => x.Source);
 
             return AppendWithOverlap(orderedKmers);
         }
 
         private string AppendWithOverlap(IEnumerable<string> input)
         {
-            // Expecter overlap = string lengt - 1. 
+            // Expected overlap = string lengt - 1. 
 
             var stringBuilder = new StringBuilder(input.First());
 
