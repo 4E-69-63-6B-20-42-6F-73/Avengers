@@ -18,12 +18,32 @@ namespace Test.Avengers
                 "CGTGCAA",
                 "TGCAATG",
                 "CAATGGC",
-                "ATGGCGT",
+                //"ATGGCGT",
             };
 
             var expected = "ATGGCGTGCAATGG";
 
             var assembler = new SimpleAssembler(input, 5);
+
+            // Act
+            var actual = assembler.Assemble();
+
+            // Assert
+            actual.Should().Be(expected);
+        }
+
+        [Fact]
+        public void CanAssembleSingleRead()
+        {
+            // Arrange
+            var input = new List<string>()
+            {
+                "ATGGCGT",
+            };
+
+            var expected = "ATGGCGT";
+
+            var assembler = new SimpleAssembler(input, 3);
 
             // Act
             var actual = assembler.Assemble();
