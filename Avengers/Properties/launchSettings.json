@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Avengers": {
+      "commandName": "Project",
+      "commandLineArgs": "analyze reads1.fa 97"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 using Avengers;
 using FluentAssertions;
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace Test.Avengers
@@ -29,7 +30,7 @@ namespace Test.Avengers
             var actual = assembler.Assemble();
 
             // Assert
-            actual.Should().Be(expected);
+            actual.Single().Should().Be(expected);
         }
 
         [Fact]
@@ -49,7 +50,7 @@ namespace Test.Avengers
             var actual = assembler.Assemble();
 
             // Assert
-            actual.Should().Be(expected);
+            actual.Single().Should().Be(expected);
         }
     }
 }
