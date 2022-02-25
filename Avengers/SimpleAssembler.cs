@@ -33,31 +33,35 @@ namespace Avengers
 
             Console.WriteLine("Finding Subgraphs");
             var subgraphs = FindSubgraphs(graph);
-
-            var i = 0;
+            
             Console.WriteLine("Assembling into contigs");
-            foreach (var subgraph in subgraphs)
+
+            var orderedKmers = subgraphs.AsParallel().Select(subgraph =>
+               {
+                   var i = Guid.NewGuid();
+                   Console.WriteLine($"Assembling subgraph {i}");
+                   
+                   var graphviz = new GraphvizAlgorithm<string, Edge<string>>(subgraph);
+                   string outputFilePath = graphviz.Generate(new FileDotEngine(), "subgraph" + i.ToString());
+
+                   if (subgraph.OddVertices().Count() % 2 == 1)
+                   {
+                       Console.WriteLine($"WARNING: subgraph {i} has uneven odd vertices.");
+                   }
+
+                   return FindOrderedKmers(subgraph);
+               });
+
+            foreach (var orderedKmer in orderedKmers)
             {
-                i++;
-
-                var graphviz = new GraphvizAlgorithm<string, Edge<string>>(subgraph);
-                string outputFilePath = graphviz.Generate(new FileDotEngine(), "subgraph"+i.ToString());
-
-                if (graph.OddVertices().Count() % 2 == 1) 
+                if (orderedKmer.Count() == 0)
                 {
-                    Console.WriteLine($"WARNING: subgraph {i} has uneven odd vertices.");
-                }
-
-                var orderedKmers = FindOrderedKmers(subgraph);
-
-                if (orderedKmers.Count() == 0)
-                {
-                    Console.WriteLine($"WARNING: Cannot assemble subgraph {i}");
+                    Console.WriteLine($"WARNING: Cannot assemble subgraph");
                     yield return string.Empty;
                 }
-                else 
+                else
                 {
-                    yield return AssembleKmersIntoContig(orderedKmers);
+                    yield return AssembleKmersIntoContig(orderedKmer);
                 }
             }
         }
@@ -89,7 +93,7 @@ namespace Avengers
         {
             var kmers = Kmers ?? reads.SelectMany(x => this.kmerGenerator.Generate(x, k));
 
-            var graph = new QuikGraph.BidirectionalGraph<string, Edge<string>>();
+            var graph = new QuikGraph.BidirectionalGraph<string, Edge<string>>( allowParallelEdges: false );
 
             foreach (var kmer in kmers)
             {
@@ -97,28 +101,42 @@ namespace Avengers
                 {
                     graph.AddVertex(kmer);
                 }
-
-                /// A[TC] -> [TC]T
-                var overlappingKmer = graph.Vertices.FirstOrDefault(x => x.StartsWith(kmer[1..]));
-                if (overlappingKmer != null)
-                {
-                    graph.AddEdge(new Edge<string>(kmer, overlappingKmer));
-                }
-
-                /// [AT]C -> G[AT]
-                overlappingKmer = graph.Vertices.FirstOrDefault(x => x.EndsWith(kmer[..^1]));
-                if (overlappingKmer != null)
-                {
-                    graph.AddEdge(new Edge<string>(overlappingKmer, kmer));
-                }
             }
+
+            /// A[TC] -> [TC]T
+            var overlappingKmers = kmers.AsParallel().GroupBy(x => x[..^1]).ToDictionary(x => x.Key, x => x.AsEnumerable());
+
+            kmers.AsParallel().ForAll(kmer => 
+            {
+                if (overlappingKmers.TryGetValue(kmer[1..], out var overlappings))
+                {
+                    foreach (var overlap in overlappings)
+                    {
+                        graph.AddEdge(new Edge<string>(kmer, overlap));
+                    }
+                }
+            });
+
+            /// [AT]C -> G[AT]
+            overlappingKmers = kmers.AsParallel().GroupBy(x => x[1..]).ToDictionary(x => x.Key, x => x.AsEnumerable());
+
+            kmers.AsParallel().ForAll(kmer =>
+            {
+                if (overlappingKmers.TryGetValue(kmer[..^1], out var overlappings))
+                {
+                    foreach (var overlap in overlappings)
+                    {
+                        graph.AddEdge(new Edge<string>(overlap, kmer));
+                    }
+                }
+            });
 
             return graph;
         }
 
         private string AssembleKmersIntoContig(IEnumerable<string> input)
         {
-            // Expected overlap = string lengt - 1.
+            // Expected overlap = string lenght - 1.
 
             var stringBuilder = new StringBuilder(input.First());
 
