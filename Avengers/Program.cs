@@ -21,9 +21,9 @@ class Program
         File.WriteAllLines(outputFileName, result);
     }
 
-    public void Analyze([Argument] string filePath, [Argument] int kmerSize)
+    public void AnalyzeAndAssemble([Argument] string filePath, [Argument] int kmerSize, [Argument] int cutoff)
     {
-        Console.WriteLine($"Analyzing {filePath}"); // TODO Convert to ILogger;
+        Console.WriteLine($"Analyzing {filePath}");
         Console.WriteLine($"Reading reads");
 
         var reads = SequenceFileReader.ReadMultipleFromFile(filePath).Select(x => x.Data.Characters).ToList();
@@ -38,18 +38,13 @@ class Program
         Console.WriteLine($"Grouping Kmers");
         var kmersCounts = kmers.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
 
-
-        //Console.WriteLine($"Kmer \t Count");
-        //foreach (var item in kmersCounts)
-        //{
-        //    Console.WriteLine($"{item.Key} \t {item.Value}");
-        //}
-
         Console.WriteLine($"Totaal diffrent Kmers  : {kmersCounts.Count()}");
         Console.WriteLine($"Totaal Kmers generated : {kmersCounts.Sum(x => x.Value)}");
         Console.WriteLine($"Average Kmers occurence: {kmersCounts.Average(x => x.Value)}");
         
-        var filteredKmers = kmersCounts.Where(x => x.Value > 95).Select(x => x.Key);
+        var filteredKmers = kmersCounts.Where(x => x.Value > cutoff).Select(x => x.Key);
+        Console.WriteLine($"Kmers after filtering: {filteredKmers.Count()}");
+
 
         var assembler = new SimpleAssembler(reads, kmerSize);
         var result = assembler.Assemble(filteredKmers).ToList();
